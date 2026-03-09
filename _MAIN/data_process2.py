@@ -9,6 +9,7 @@ import os
 def extract_fields_from_file(file_path):
     """
     从处理后的文件中提取所有字段并组织成四个大列表
+    并再次处理掉一些无用的内容，如“1.1.1”或“（1.1.1）”等
     """
     questions = []
     answers = []
@@ -60,6 +61,9 @@ def extract_fields_from_file(file_path):
         if context_match:
             raw_text = context_match.group(1).strip()
             context = [c.strip() for c in raw_text.split(",") if c.strip()]
+            context = [
+                re.sub(r"\d+\.\d+\.\d+", "", c) for c in context
+            ]  # 去掉类似“1.1.1”的内容
             contexts.append(context)
         else:
             contexts.append("")
@@ -71,7 +75,7 @@ def extract_fields_from_file(file_path):
             truth = truth_match.group(1).strip()
             truth = re.sub(
                 r"（[^）]*?\d+[^）]*?）", "", truth
-            )  # 去掉类似“（见表2）”的内容
+            )  # 去掉类似“（1.1.1）”的内容
             ground_truths.append(truth)
         else:
             ground_truths.append("")

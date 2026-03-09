@@ -4,6 +4,7 @@
 
 
 import os
+import sys
 import json
 from datasets import Dataset
 from ragas import evaluate
@@ -18,6 +19,8 @@ from langchain_openai import ChatOpenAI
 from ragas.llms import LangchainLLMWrapper
 from langchain_huggingface import HuggingFaceEmbeddings  # 使用新版导入
 import pandas as pd
+
+sys.path.append(os.path.dirname(__file__))
 
 import _API_INFO
 
@@ -44,7 +47,7 @@ def run():
     evaluator_llm = LangchainLLMWrapper(deepseek_llm)
 
     # 4. 准备评估数据
-    if 0:
+    if 1:
         data_samples = json.load(
             open("_MAIN/middleFile/structured_data.json", "r", encoding="utf-8")
         )

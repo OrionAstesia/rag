@@ -1,6 +1,6 @@
-# 前端处理脚本#1
+# 前端处理脚本#0
 # 读取原始半结构化文本文件，解析其中的目标数据块并完成初步格式规整
-# 处理含有question-answer对的上下文数据
+# 按照 条款编号 分割上下文
 # 输出中间文件 processed_results.txt
 
 import re
@@ -9,28 +9,30 @@ import os
 
 def transform_data(text):
     """
-    改进版本：处理特殊格式的实际答案和上下文
+    改进版本：
+    1. 处理规范条款型上下文
+    2. 按条款编号（如 9.25.1）切分为多个 chunks
     """
-    # 查找所有数据块起始位置
+
     block_matches = list(re.finditer(r"(\n?\d+\.问题：[^\n]*)", text))
 
     if not block_matches:
         print("未找到任何数据块")
         return []
 
-    # 提取每个数据块的文本范围
     blocks = []
     for i in range(len(block_matches)):
-        start_match = block_matches[i]
-        start_index = start_match.start()
+        start_index = block_matches[i].start()
         end_index = (
-            block_matches[i + 1].start() if i + 1 < len(block_matches) else len(text)
+            block_matches[i + 1].start()
+            if i + 1 < len(block_matches)
+            else len(text)
         )
         block_text = text[start_index:end_index].strip()
         blocks.append(block_text)
 
-    # 解析每个数据块
     results = []
+
     for block in blocks:
         try:
             # 提取原始问题（包含编号）
@@ -39,7 +41,7 @@ def transform_data(text):
                 continue
             original_question = question_match.group(1).strip()
 
-            # 提取参考答案部分 - 更灵活的匹配
+            # 提取参考答案
             ground_truth_match = re.search(
                 r"参考答案：(.*?)(?=实际答案：|\n|$)", block, re.DOTALL
             )
@@ -47,7 +49,7 @@ def transform_data(text):
                 continue
             ground_truth = ground_truth_match.group(1).strip()
 
-            # 提取实际答案部分 - 处理特殊格式
+            # 提取实际答案
             answer_match = re.search(
                 r"实际答案：(.*?)(?=上下文：|\n|$)", block, re.DOTALL
             )
@@ -55,33 +57,32 @@ def transform_data(text):
                 continue
             answer = answer_match.group(1).strip()
 
-            # 提取上下文部分 - 处理有无花括号两种情况
-            context_match = re.search(r"上下文：\s*(\{?.*?\}?)\s*$", block, re.DOTALL)
+            # 提取上下文
+            context_match = re.search(
+                r"上下文：\s*(.*)$", block, re.DOTALL
+            )
             if not context_match:
                 continue
+
             context_str = context_match.group(1).strip()
+            context_str = re.sub(r"\n", "", context_str)
 
-            # 移除可能的花括号
-            if context_str.startswith("{") and context_str.endswith("}"):
-                context_str = context_str[1:-1].strip()
+            # 按条款编号切分（保留编号）
+            # 匹配形如 9.25.1 / 8.7.2 等
+            context_chunks = re.split(r'(?=\d+\.\d+\.\d+)', context_str)
 
-            # 处理上下文中的多个question-answer对
-            context_pairs = re.findall(
-                r"question:(.*?)\s*answer:(.*?)(?=question:|$)", context_str, re.DOTALL
-            )
-            context_answers = []
-            for _, ans in context_pairs:
-                clean_ans = re.sub(r"\s+", " ", ans).strip()
-                context_answers.append(clean_ans)
+            # 清洗空白
+            context_chunks = [
+                chunk.strip()
+                for chunk in context_chunks
+                if chunk.strip()
+            ]
 
-            # 合并所有answer作为上下文
-            context = ", ".join(context_answers)
-
-            # 构建结果字典
+            # 构建结果
             result = {
                 "original_question": original_question,
                 "answer": answer,
-                "context": context,
+                "context": ",".join(context_chunks),  # ← 现在是条款级chunk
                 "ground_truth": ground_truth,
             }
 
@@ -92,7 +93,6 @@ def transform_data(text):
             continue
 
     return results
-
 
 # 【选项 1】处理单个文件
 def process_file(input_file, output_file):
@@ -194,8 +194,6 @@ def process_folder(input_dir, output_file):
 
     print(f"共解析 {len(all_results)} 条数据")
     print(f"结果已保存到: {os.path.abspath(output_file)}")
-
-
 
 
 if __name__ == "__main__":
