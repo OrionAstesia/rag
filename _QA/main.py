@@ -4,8 +4,14 @@ import requests
 import json
 import time
 import re
+import os
+import sys
 
-API_KEY = "app-Io2oSeqvIQPMAqPFXVyaLj4Z"
+sys.path.append(os.path.dirname(__file__))
+
+import _API_INFO
+
+API_KEY = _API_INFO.API_KEY
 URL = "https://api.dify.ai/v1/chat-messages"
 MAX_COUNT = 40  # 最大为40
 
